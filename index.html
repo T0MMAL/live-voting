@@ -21,12 +21,11 @@ body {
 
 h1 {
   font-size: 42px;
-  margin-bottom: 10px;
 }
 
 .question {
   font-size: 24px;
-  margin-bottom: 35px;
+  margin-bottom: 30px;
 }
 
 .total {
@@ -55,7 +54,6 @@ h1 {
 
 .bar {
   height: 100%;
-  width: 0%;
   background: #4f46e5;
   border-radius: 12px;
   transition: width 0.5s;
@@ -85,15 +83,15 @@ h1 {
 <div id="chart"></div>
 
 <div class="status" id="status">
-Подключение к голосованию...
+Подключение...
 </div>
 
 </div>
 
 <script>
 
-const publishedUrl =
-"https://docs.google.com/spreadsheets/d/e/2PACX-1vSU5uTXyZ2d168T3kt5_kKPfKHA7MsnZVi28wZpwSmyCIyuaU-U2ApCYA-ABlxkHju8xAfgotiKJg_E/pubhtml?gid=997047068&single=true";
+const apiUrl =
+"https://script.google.com/macros/s/AKfycbyTL1vGOSiZoIhXA8pdNY4x5Ncs8hxNt4eZbnD0o47iT0nMF78ajh-OFywazEAFTmA/exec";
 
 const options = [
   "Текст",
@@ -102,105 +100,63 @@ const options = [
   "Игра"
 ];
 
-function drawChart(values) {
-
-  const chart = document.getElementById("chart");
-
-  chart.innerHTML = "";
-
-  let total = 0;
-
-  options.forEach(option => {
-    total += values[option] || 0;
-  });
-
-  document.getElementById("total").textContent =
-    "Всего голосов: " + total;
-
-  const max = Math.max(
-    ...options.map(option => values[option] || 0),
-    1
-  );
-
-  options.forEach(option => {
-
-    const count = values[option] || 0;
-
-    const width = (count / max) * 100;
-
-    const element = document.createElement("div");
-
-    element.className = "option";
-
-    element.innerHTML = `
-      <div class="name">
-        <span>${option}</span>
-        <strong>${count}</strong>
-      </div>
-
-      <div class="background">
-        <div class="bar" style="width:${width}%"></div>
-      </div>
-    `;
-
-    chart.appendChild(element);
-  });
-
-  document.getElementById("status").textContent =
-    "Голоса обновляются автоматически";
-}
-
 async function update() {
 
   try {
 
-    const response = await fetch(publishedUrl, {
-      cache: "no-store"
+    const response = await fetch(apiUrl + "?t=" + Date.now());
+
+    const votes = await response.json();
+
+    let total = 0;
+
+    options.forEach(option => {
+      total += Number(votes[option]) || 0;
     });
 
-    const html = await response.text();
+    document.getElementById("total").textContent =
+      "Всего голосов: " + total;
 
-    const values = {};
+    const max = Math.max(
+      ...options.map(option => Number(votes[option]) || 0),
+      1
+    );
+
+    const chart = document.getElementById("chart");
+
+    chart.innerHTML = "";
 
     options.forEach(option => {
 
-      const index = html.indexOf(option);
+      const count = Number(votes[option]) || 0;
 
-      if (index !== -1) {
+      const width = (count / max) * 100;
 
-        const after = html.substring(index);
+      chart.innerHTML += `
+        <div class="option">
+          <div class="name">
+            <span>${option}</span>
+            <strong>${count}</strong>
+          </div>
 
-        const numbers =
-          after.match(/>\s*(\d+)\s*</g);
-
-        if (numbers && numbers.length > 0) {
-
-          const number =
-            parseInt(
-              numbers[0]
-                .replace(/>/g, "")
-                .replace(/</g, "")
-                .trim()
-            );
-
-          values[option] = number;
-        }
-      }
-
-      if (values[option] === undefined) {
-        values[option] = 0;
-      }
+          <div class="background">
+            <div class="bar" style="width:${width}%"></div>
+          </div>
+        </div>
+      `;
 
     });
 
-    drawChart(values);
+    document.getElementById("status").textContent =
+      "Обновляется автоматически каждые 3 секунды";
 
   } catch (error) {
 
-    document.getElementById("status").textContent =
-      "Ожидание данных...";
+    console.error(error);
 
-    console.log(error);
+    document.getElementById("status").textContent =
+      "Не удалось получить данные";
+
   }
 }
 
