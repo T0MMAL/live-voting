@@ -1,1 +1,232 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
+  <title>Интерактивное голосование</title>
+
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: Arial, sans-serif;
+      background: #ffffff;
+      color: #111111;
+      padding: 40px;
+    }
+
+    .container {
+      max-width: 1100px;
+      margin: auto;
+    }
+
+    h1 {
+      font-size: 42px;
+      margin-bottom: 10px;
+    }
+
+    .subtitle {
+      font-size: 22px;
+      margin-bottom: 35px;
+    }
+
+    .total {
+      font-size: 20px;
+      margin-bottom: 25px;
+      font-weight: bold;
+    }
+
+    .row {
+      margin-bottom: 28px;
+    }
+
+    .label {
+      display: flex;
+      justify-content: space-between;
+      font-size: 22px;
+      margin-bottom: 8px;
+    }
+
+    .bar-background {
+      width: 100%;
+      height: 45px;
+      background: #eeeeee;
+      border-radius: 12px;
+      overflow: hidden;
+    }
+
+    .bar {
+      height: 100%;
+      width: 0%;
+      background: #4f46e5;
+      border-radius: 12px;
+      transition: width 0.6s ease;
+    }
+
+    .updated {
+      margin-top: 30px;
+      color: #666666;
+      font-size: 16px;
+    }
+  </style>
+</head>
+
+<body>
+
+<div class="container">
+
+  <h1>Интерактивное голосование</h1>
+
+  <div class="subtitle">
+    Какой формат вы бы выбрали?
+  </div>
+
+  <div class="total" id="total">
+    Всего голосов: 0
+  </div>
+
+  <div id="chart"></div>
+
+  <div class="updated" id="updated">
+    Обновление...
+  </div>
+
+</div>
+
+<script>
+
+const spreadsheetId =
+"1br741DTbLPiWgAKQ2bTTUFZjIV1YVaY3K-N0iTHyBTE";
+
+const gid =
+"997047068";
+
+const options = [
+  "Текст",
+  "Карта",
+  "3D - модель",
+  "Игра"
+];
+
+async function loadVotes() {
+
+  try {
+
+    const url =
+      `https://docs.google.com/spreadsheets/d/${spreadsheetId}/gviz/tq?tqx=out:json&gid=${gid}`;
+
+    const response = await fetch(url);
+
+    const text = await response.text();
+
+    const jsonText =
+      text.substring(
+        text.indexOf("{"),
+        text.lastIndexOf("}") + 1
+      );
+
+    const data = JSON.parse(jsonText);
+
+    const rows = data.table.rows;
+
+    let votes = {};
+
+    options.forEach(option => {
+      votes[option] = 0;
+    });
+
+    rows.forEach(row => {
+
+      if (!row.c || !row.c[0]) return;
+
+      const option =
+        row.c[0].v;
+
+      const count =
+        row.c[1] ? Number(row.c[1].v) || 0 : 0;
+
+      if (options.includes(option)) {
+        votes[option] = count;
+      }
+
+    });
+
+    const total =
+      Object.values(votes).reduce(
+        (sum, value) => sum + value,
+        0
+      );
+
+    document.getElementById("total").textContent =
+      `Всего голосов: ${total}`;
+
+    const chart =
+      document.getElementById("chart");
+
+    chart.innerHTML = "";
+
+    const max =
+      Math.max(...Object.values(votes), 1);
+
+    options.forEach(option => {
+
+      const count = votes[option];
+
+      const percent =
+        (count / max) * 100;
+
+      const row =
+        document.createElement("div");
+
+      row.className = "row";
+
+      row.innerHTML = `
+        <div class="label">
+          <span>${option}</span>
+          <strong>${count}</strong>
+        </div>
+
+        <div class="bar-background">
+          <div
+            class="bar"
+            style="width: ${percent}%">
+          </div>
+        </div>
+      `;
+
+      chart.appendChild(row);
+
+    });
+
+    const now =
+      new Date().toLocaleTimeString("ru-RU");
+
+    document.getElementById("updated").textContent =
+      `Последнее обновление: ${now}`;
+
+  }
+
+  catch (error) {
+
+    console.error(error);
+
+    document.getElementById("updated").textContent =
+      "Не удалось обновить данные";
+
+  }
+
+}
+
+loadVotes();
+
+setInterval(loadVotes, 3000);
+
+</script>
+
+</body>
+</html>
